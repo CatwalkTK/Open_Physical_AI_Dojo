@@ -1,0 +1,44 @@
+services:
+  dogzilla-runtime:
+    image: python:3.13-slim
+    working_dir: /app
+    command: ["python", "app.py"]
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./ai_robotics/robot/dogzilla_runtime:/app
+
+  backend:
+    image: golang:1.25
+    working_dir: /app
+    command: ["go", "run", "./cmd/server"]
+    depends_on:
+      - dogzilla-runtime
+    environment:
+      DOGZILLA_RUNTIME_URL: http://dogzilla-runtime:8090
+      DATA_DIR: /data
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - ./data:/data
+      - go-cache:/go/pkg/mod
+
+  frontend:
+    image: node:22
+    working_dir: /app
+    command: ["sh", "-c", "npm install && npm run dev"]
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE: http://localhost:8080
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+
+volumes:
+  go-cache:
+  frontend-node-modules:

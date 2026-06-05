@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-physical-ai-dojo.local/schemas/simulator.schema.json",
+  "title": "SimulatorState",
+  "type": "object",
+  "required": ["mode", "x", "y", "yaw_deg", "path", "obstacles", "targets", "updated_at"],
+  "properties": {
+    "mode": { "type": "string" },
+    "x": { "type": "number" },
+    "y": { "type": "number" },
+    "yaw_deg": { "type": "number" },
+    "path": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["x", "y", "yaw_deg", "time"],
+        "properties": {
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "yaw_deg": { "type": "number" },
+          "time": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "obstacles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/simulatorObject" }
+    },
+    "targets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/simulatorObject" }
+    },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "simulatorObject": {
+      "type": "object",
+      "required": ["id", "label", "x", "y", "radius"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "radius": { "type": "number" }
+      }
+    }
+  }
+}

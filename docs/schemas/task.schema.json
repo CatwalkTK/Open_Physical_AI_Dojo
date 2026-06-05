@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-physical-ai-dojo.local/schemas/task.schema.json",
+  "title": "Task",
+  "type": "object",
+  "required": ["id", "instruction", "environment", "status", "created_at", "updated_at"],
+  "properties": {
+    "id": { "type": "string" },
+    "instruction": { "type": "string" },
+    "environment": { "enum": ["simulator", "dogzilla"] },
+    "status": { "enum": ["queued", "running", "succeeded", "failed", "stopped"] },
+    "plan": { "$ref": "./plan.schema.json" },
+    "simulator_state": { "$ref": "./simulator.schema.json" },
+    "failure_reason": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

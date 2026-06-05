@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-physical-ai-dojo.local/schemas/plan.schema.json",
+  "title": "ActionPlan",
+  "type": "object",
+  "required": ["goal", "steps", "risk_level"],
+  "properties": {
+    "goal": { "type": "string" },
+    "risk_level": { "enum": ["low", "medium", "high"] },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "enum": ["stand", "sit", "move", "stop"] },
+          "linear_x": { "type": "number" },
+          "linear_y": { "type": "number" },
+          "yaw_deg": { "type": "number" },
+          "duration_ms": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

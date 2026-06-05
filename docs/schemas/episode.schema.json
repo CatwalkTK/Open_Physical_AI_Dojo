@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-physical-ai-dojo.local/schemas/episode.schema.json",
+  "title": "Episode",
+  "type": "object",
+  "required": ["task_id", "instruction", "plan", "commands", "robot_states", "result"],
+  "properties": {
+    "task_id": { "type": "string" },
+    "instruction": { "type": "string" },
+    "perception": { "type": "object" },
+    "plan": { "$ref": "./plan.schema.json" },
+    "commands": { "type": "array" },
+    "robot_states": { "type": "array" },
+    "result": { "enum": ["succeeded", "failed", "stopped"] },
+    "failure_reason": { "type": ["string", "null"] }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-physical-ai-dojo.local/schemas/dogzilla_status.schema.json",
+  "title": "DogzillaRuntimeStatus",
+  "type": "object",
+  "required": ["connected", "runtime_url", "safety", "last_checked"],
+  "properties": {
+    "connected": { "type": "boolean" },
+    "runtime_url": { "type": "string" },
+    "state": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string" },
+        "battery": { "type": "number" },
+        "roll": { "type": "number" },
+        "pitch": { "type": "number" },
+        "yaw": { "type": "number" },
+        "servo_angles": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "required": ["emergency_stop_available", "max_linear_x", "max_linear_y", "max_yaw_deg", "max_duration_ms"],
+      "properties": {
+        "emergency_stop_available": { "type": "boolean" },
+        "max_linear_x": { "type": "number" },
+        "max_linear_y": { "type": "number" },
+        "max_yaw_deg": { "type": "number" },
+        "max_duration_ms": { "type": "integer" }
+      }
+    },
+    "error": { "type": "string" },
+    "last_checked": { "type": "string", "format": "date-time" }
+  }
+}

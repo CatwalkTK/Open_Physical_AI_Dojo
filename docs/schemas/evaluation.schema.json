@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-physical-ai-dojo.local/schemas/evaluation.schema.json",
+  "title": "EvaluationResult",
+  "type": "object",
+  "required": ["id", "suite", "summary", "cases", "created_at"],
+  "properties": {
+    "id": { "type": "string" },
+    "suite": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "required": ["total_cases", "passed_cases", "success_rate", "average_confidence", "average_final_x"],
+      "properties": {
+        "total_cases": { "type": "integer" },
+        "passed_cases": { "type": "integer" },
+        "success_rate": { "type": "number" },
+        "average_confidence": { "type": "number" },
+        "average_final_x": { "type": "number" }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "instruction",
+          "expected_object",
+          "detected_object_labels",
+          "plan_goal",
+          "final_x",
+          "passed"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "instruction": { "type": "string" },
+          "expected_object": { "type": "string" },
+          "detected_object_labels": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "plan_goal": { "type": "string" },
+          "final_x": { "type": "number" },
+          "passed": { "type": "boolean" },
+          "failure_reason": { "type": "string" }
+        }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-physical-ai-dojo.local/schemas/perception.schema.json",
+  "title": "PerceptionResult",
+  "type": "object",
+  "required": ["source", "image_size", "objects", "summary"],
+  "properties": {
+    "source": { "type": "string" },
+    "image_size": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer" },
+        "height": { "type": "integer" }
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "display_name", "confidence", "bbox", "position_hint"],
+        "properties": {
+          "label": { "type": "string" },
+          "display_name": { "type": "string" },
+          "confidence": { "type": "number" },
+          "bbox": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": { "type": "number" }
+          },
+          "position_hint": { "type": "string" }
+        }
+      }
+    },
+    "summary": { "type": "string" }
+  }
+}
