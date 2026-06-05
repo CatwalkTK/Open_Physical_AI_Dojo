@@ -20,6 +20,7 @@ import {
   emergencyStopDogzilla,
   executeTask,
   getDogzillaStatus,
+  getPerceptionStatus,
   listEpisodes,
   listEvaluations,
   runEvaluation,
@@ -33,6 +34,7 @@ import type {
   Environment,
   EvaluationResult,
   PerceptionResult,
+  PerceptionServiceStatus,
   SimulatorObject,
   SimulatorState,
   Task,
@@ -44,6 +46,7 @@ function App() {
   const [environment, setEnvironment] = React.useState<Environment>("simulator");
   const [task, setTask] = React.useState<Task | null>(null);
   const [perception, setPerception] = React.useState<PerceptionResult | null>(null);
+  const [perceptionStatus, setPerceptionStatus] = React.useState<PerceptionServiceStatus | null>(null);
   const [dogzillaStatus, setDogzillaStatus] = React.useState<DogzillaRuntimeStatus | null>(null);
   const [evaluation, setEvaluation] = React.useState<EvaluationResult | null>(null);
   const [episodeHistory, setEpisodeHistory] = React.useState<Task[]>([]);
@@ -51,6 +54,7 @@ function App() {
   const [error, setError] = React.useState("");
   const [isBusy, setIsBusy] = React.useState(false);
   const [isVisionBusy, setIsVisionBusy] = React.useState(false);
+  const [isPerceptionStatusBusy, setIsPerceptionStatusBusy] = React.useState(false);
   const [isRobotBusy, setIsRobotBusy] = React.useState(false);
   const [isEvaluationBusy, setIsEvaluationBusy] = React.useState(false);
 
@@ -64,6 +68,7 @@ function App() {
 
   React.useEffect(() => {
     void handleDogzillaStatus();
+    void handlePerceptionStatus();
     void handleRefreshHistory();
   }, []);
 
@@ -90,6 +95,23 @@ function App() {
       setError(err instanceof Error ? err.message : "画像認識に失敗しました");
     } finally {
       setIsVisionBusy(false);
+    }
+  }
+
+  async function handlePerceptionStatus() {
+    setIsPerceptionStatusBusy(true);
+    try {
+      const status = await getPerceptionStatus();
+      setPerceptionStatus(status);
+    } catch (err) {
+      setPerceptionStatus({
+        connected: false,
+        service_url: "http://localhost:8070",
+        error: err instanceof Error ? err.message : "Perception Serviceに接続できません",
+        last_checked: new Date().toISOString(),
+      });
+    } finally {
+      setIsPerceptionStatusBusy(false);
     }
   }
 
@@ -190,8 +212,8 @@ function App() {
       <section className="phase-panel" aria-label="development phase">
         <div className="phase-summary">
           <span className="phase-kicker">Current Development Stage</span>
-          <h2>Phase 6: Persistence and History</h2>
-          <p>実行ログと評価結果をJSONLに保存し、再起動後も履歴として確認する段階です。</p>
+          <h2>Phase 7: Perception Service Integration</h2>
+          <p>画像認識をGin内のmockからPython Perception Serviceへ分離し、モデル差し替えの境界を作る段階です。</p>
         </div>
         <div className="phase-steps">
           <PhaseStep status="done" label="Phase 0" description="Gin / React / Dogzilla mock基盤" />
@@ -200,11 +222,12 @@ function App() {
           <PhaseStep status="done" label="Phase 3" description="Simulator強化と軌跡表示" />
           <PhaseStep status="done" label="Phase 4" description="Dogzilla状態確認と停止系統" />
           <PhaseStep status="done" label="Phase 5" description="評価ベンチマーク" />
-          <PhaseStep status="active" label="Phase 6" description="履歴保存と再表示" />
+          <PhaseStep status="done" label="Phase 6" description="履歴保存と再表示" />
+          <PhaseStep status="active" label="Phase 7" description="Perception Service連携" />
         </div>
         <div className="capability-grid">
-          <Capability title="今できること" items={["Episode履歴を見る", "Evaluation履歴を見る", "JSONLとして保存する"]} />
-          <Capability title="まだ未実装" items={["実機ROS2ノード接続", "本物のモデル推論", "SQLite/Postgres移行"]} />
+          <Capability title="今できること" items={["Perception Service接続確認", "外部サービス経由でVision実行", "モデル差し替え境界を維持"]} />
+          <Capability title="まだ未実装" items={["本物のYOLO/SAM接続", "実機ROS2ノード接続", "SQLite/Postgres移行"]} />
         </div>
       </section>
 
@@ -259,7 +282,12 @@ function App() {
             <Eye size={20} />
             <h2>Vision Viewer</h2>
           </div>
-          <VisionViewer result={perception} />
+          <VisionViewer
+            result={perception}
+            status={perceptionStatus}
+            isStatusBusy={isPerceptionStatusBusy}
+            onRefreshStatus={handlePerceptionStatus}
+          />
         </div>
 
         <div className="panel">
@@ -580,10 +608,30 @@ function defaultSimulatorObstacles(): SimulatorObject[] {
   return [{ id: "table_edge", label: "机の端", x: 0.58, y: 0, radius: 0.06 }];
 }
 
-function VisionViewer({ result }: { result: PerceptionResult | null }) {
+function VisionViewer({
+  result,
+  status,
+  isStatusBusy,
+  onRefreshStatus,
+}: {
+  result: PerceptionResult | null;
+  status: PerceptionServiceStatus | null;
+  isStatusBusy: boolean;
+  onRefreshStatus: () => void;
+}) {
   const objects = result?.objects ?? [];
   return (
     <div>
+      <div className="service-status-row">
+        <div className={`connection-card compact-card ${status?.connected ? "connected" : "disconnected"}`}>
+          <strong>{status?.connected ? "Service Connected" : "Service Unknown"}</strong>
+          <span>{status?.service_url ?? "http://localhost:8070"}</span>
+        </div>
+        <button className="icon-button" onClick={onRefreshStatus} disabled={isStatusBusy} title="Refresh Perception Service status">
+          <RefreshCw size={18} />
+        </button>
+      </div>
+      {status?.error && <p className="error">{status.error}</p>}
       <div className="vision-stage" aria-label="sample workbench">
         <div className="bench-surface">
           <div className="sample-object red-block" />

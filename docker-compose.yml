@@ -8,14 +8,25 @@ services:
     volumes:
       - ./ai_robotics/robot/dogzilla_runtime:/app
 
+  perception-service:
+    image: python:3.13-slim
+    working_dir: /app
+    command: ["python", "app.py"]
+    ports:
+      - "8070:8070"
+    volumes:
+      - ./ai_robotics/perception_service:/app
+
   backend:
     image: golang:1.25
     working_dir: /app
     command: ["go", "run", "./cmd/server"]
     depends_on:
       - dogzilla-runtime
+      - perception-service
     environment:
       DOGZILLA_RUNTIME_URL: http://dogzilla-runtime:8090
+      PERCEPTION_SERVICE_URL: http://perception-service:8070
       DATA_DIR: /data
       PORT: "8080"
     ports:

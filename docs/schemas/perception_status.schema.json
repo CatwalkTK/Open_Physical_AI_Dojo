@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-physical-ai-dojo.local/schemas/perception_status.schema.json",
+  "title": "PerceptionServiceStatus",
+  "type": "object",
+  "required": ["connected", "service_url", "last_checked"],
+  "properties": {
+    "connected": { "type": "boolean" },
+    "service_url": { "type": "string" },
+    "error": { "type": "string" },
+    "last_checked": { "type": "string", "format": "date-time" }
+  }
+}

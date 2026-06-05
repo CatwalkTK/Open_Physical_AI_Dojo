@@ -1,4 +1,4 @@
-import type { DogzillaRuntimeStatus, Environment, EvaluationResult, PerceptionResult, Task } from "./types";
+import type { DogzillaRuntimeStatus, Environment, EvaluationResult, PerceptionResult, PerceptionServiceStatus, Task } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
@@ -28,6 +28,10 @@ export async function runPerception(input: { source: string; instruction: string
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export async function getPerceptionStatus(): Promise<PerceptionServiceStatus> {
+  return request("/api/perception/status");
 }
 
 export async function getDogzillaStatus(): Promise<DogzillaRuntimeStatus> {

@@ -2,12 +2,13 @@
 
 Open Physical AI Dojo is an educational VLA development environment for learning perception, Japanese instruction understanding, planning, and physical robot execution.
 
-The current implementation is Phase 6 initial:
+The current implementation is Phase 7 initial:
 
 - Gin backend orchestrator
 - React Task Runner
 - Vision Viewer
-- Mock perception API
+- Python Perception Service
+- Perception Service status API
 - Simulator Viewer with pose and path updates
 - Dogzilla Status Viewer
 - Dogzilla Runtime health/state/stop API
@@ -24,10 +25,11 @@ The current implementation is Phase 6 initial:
 ```text
 frontend React
   -> backend Gin
+    -> Perception Service
     -> Dogzilla Runtime mock
 ```
 
-The Dogzilla Runtime mock keeps the HTTP contract that the real ROS2/Python Dogzilla process should implement later.
+The Dogzilla Runtime mock keeps the HTTP contract that the real ROS2/Python Dogzilla process should implement later. The Perception Service keeps the detector boundary that YOLO, SAM, OpenCV, or another model-backed detector should implement later.
 
 ## Run With Docker Compose
 
@@ -39,6 +41,7 @@ Open:
 
 - Frontend: http://localhost:5173
 - Backend health: http://localhost:8080/api/health
+- Perception service health: http://localhost:8070/health
 - Dogzilla mock health: http://localhost:8090/health
 
 ## Run Locally
@@ -53,11 +56,21 @@ python3 app.py
 Terminal 2:
 
 ```bash
-cd backend
-DATA_DIR=../data DOGZILLA_RUNTIME_URL=http://localhost:8090 go run ./cmd/server
+cd ai_robotics/perception_service
+python3 app.py
 ```
 
 Terminal 3:
+
+```bash
+cd backend
+DATA_DIR=../data \
+DOGZILLA_RUNTIME_URL=http://localhost:8090 \
+PERCEPTION_SERVICE_URL=http://localhost:8070 \
+go run ./cmd/server
+```
+
+Terminal 4:
 
 ```bash
 cd frontend
@@ -77,6 +90,8 @@ curl -s -X POST http://localhost:8080/api/tasks \
 curl -s -X POST http://localhost:8080/api/perception \
   -H 'Content-Type: application/json' \
   -d '{"source":"sample_workbench","instruction":"赤いブロックを見つけて"}'
+
+curl -s http://localhost:8080/api/perception/status
 
 TASK_ID=$(curl -s -X POST http://localhost:8080/api/tasks \
   -H 'Content-Type: application/json' \
@@ -114,7 +129,7 @@ curl -s http://localhost:8080/api/evaluations
 
 ## Next Implementation Targets
 
-1. Replace mock perception with a model-backed detector.
+1. Replace Perception Service mock internals with a model-backed detector.
 2. Replace rule-based planning with a Python language/planner service.
 3. Replace JSONL persistence with SQLite or Postgres.
 4. Replace Dogzilla mock internals with ROS2 Humble nodes on Raspberry Pi 5.

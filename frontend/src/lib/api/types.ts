@@ -71,6 +71,13 @@ export type PerceptionResult = {
   summary: string;
 };
 
+export type PerceptionServiceStatus = {
+  connected: boolean;
+  service_url: string;
+  error?: string;
+  last_checked: string;
+};
+
 export type DetectedObject = {
   label: string;
   display_name: string;

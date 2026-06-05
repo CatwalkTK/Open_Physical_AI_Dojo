@@ -61,6 +61,13 @@ type PerceptionResult struct {
 	Summary   string           `json:"summary"`
 }
 
+type PerceptionServiceStatus struct {
+	Connected   bool      `json:"connected"`
+	ServiceURL  string    `json:"service_url"`
+	Error       string    `json:"error,omitempty"`
+	LastChecked time.Time `json:"last_checked"`
+}
+
 type ImageSize struct {
 	Width  int `json:"width"`
 	Height int `json:"height"`

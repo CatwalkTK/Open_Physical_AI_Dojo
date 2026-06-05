@@ -21,6 +21,7 @@ func NewRouter(taskService *service.TaskService) *gin.Engine {
 		api.POST("/tasks", createTask(taskService))
 		api.GET("/tasks/:id", getTask(taskService))
 		api.POST("/perception", runPerception(taskService))
+		api.GET("/perception/status", getPerceptionStatus(taskService))
 		api.GET("/robot/dogzilla", getDogzillaStatus(taskService))
 		api.POST("/robot/dogzilla/stop", emergencyStopDogzilla(taskService))
 		api.POST("/plans", createPlan(taskService))
@@ -33,6 +34,17 @@ func NewRouter(taskService *service.TaskService) *gin.Engine {
 	}
 
 	return router
+}
+
+func getPerceptionStatus(taskService *service.TaskService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status := taskService.PerceptionStatus()
+		if !status.Connected {
+			c.JSON(http.StatusServiceUnavailable, status)
+			return
+		}
+		c.JSON(http.StatusOK, status)
+	}
 }
 
 func runEvaluation(taskService *service.TaskService) gin.HandlerFunc {

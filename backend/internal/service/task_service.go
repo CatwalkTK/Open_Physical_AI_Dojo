@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"open-physical-ai-dojo/backend/internal/domain"
+	"open-physical-ai-dojo/backend/internal/integration/perception"
 	"open-physical-ai-dojo/backend/internal/integration/robot"
 	"open-physical-ai-dojo/backend/internal/repository"
 	"open-physical-ai-dojo/backend/internal/safety"
@@ -19,15 +20,17 @@ type TaskService struct {
 	nextID   int
 	tasks    map[string]*domain.Task
 	dogzilla *robot.DogzillaClient
+	vision   *perception.Client
 	store    *repository.JSONLStore
 	guard    safety.Guard
 	broker   *stream.Broker
 }
 
-func NewTaskService(dogzilla *robot.DogzillaClient, store *repository.JSONLStore) *TaskService {
+func NewTaskService(dogzilla *robot.DogzillaClient, vision *perception.Client, store *repository.JSONLStore) *TaskService {
 	return &TaskService{
 		tasks:    map[string]*domain.Task{},
 		dogzilla: dogzilla,
+		vision:   vision,
 		store:    store,
 		guard:    safety.NewGuard(),
 		broker:   stream.NewBroker(),
@@ -133,46 +136,28 @@ func (s *TaskService) GeneratePlan(req domain.PlanRequest) domain.ActionPlan {
 }
 
 func (s *TaskService) RunPerception(req domain.PerceptionRequest) domain.PerceptionResult {
-	source := strings.TrimSpace(req.Source)
-	if source == "" {
-		source = "sample_workbench"
+	result, err := s.vision.Run(req)
+	if err != nil {
+		return domain.PerceptionResult{
+			Source:  req.Source,
+			Summary: "perception service error: " + err.Error(),
+		}
 	}
+	return result
+}
 
-	objects := []domain.DetectedObject{
-		{
-			Label:        "red_block",
-			DisplayName:  "赤いブロック",
-			Confidence:   0.94,
-			BBox:         []float64{94, 78, 205, 172},
-			PositionHint: "front_left",
-		},
-		{
-			Label:        "blue_marker",
-			DisplayName:  "青い目印",
-			Confidence:   0.88,
-			BBox:         []float64{286, 112, 382, 202},
-			PositionHint: "front_right",
-		},
-		{
-			Label:        "table_edge",
-			DisplayName:  "机の端",
-			Confidence:   0.81,
-			BBox:         []float64{0, 256, 480, 294},
-			PositionHint: "near_front",
-		},
+func (s *TaskService) PerceptionStatus() domain.PerceptionServiceStatus {
+	status := domain.PerceptionServiceStatus{
+		Connected:   false,
+		ServiceURL:  s.vision.BaseURL(),
+		LastChecked: time.Now().UTC(),
 	}
-
-	lowerInstruction := strings.ToLower(req.Instruction)
-	if strings.Contains(req.Instruction, "赤") || strings.Contains(lowerInstruction, "red") {
-		objects = objects[:1]
+	if err := s.vision.Health(); err != nil {
+		status.Error = err.Error()
+		return status
 	}
-
-	return domain.PerceptionResult{
-		Source:    source,
-		ImageSize: domain.ImageSize{Width: 480, Height: 320},
-		Objects:   objects,
-		Summary:   "mock perception completed; replace this service with a model-backed detector in Phase 2 later steps",
-	}
+	status.Connected = true
+	return status
 }
 
 func (s *TaskService) DogzillaStatus() domain.DogzillaRuntimeStatus {
