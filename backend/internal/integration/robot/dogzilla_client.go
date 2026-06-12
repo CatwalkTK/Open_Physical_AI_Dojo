@@ -56,6 +56,20 @@ func (c *DogzillaClient) State() (domain.DogzillaState, error) {
 	return state, err
 }
 
+func (c *DogzillaClient) CameraFrame() (domain.DogzillaCameraFrame, error) {
+	var frame domain.DogzillaCameraFrame
+	resp, err := c.client.Get(c.baseURL + "/camera/frame")
+	if err != nil {
+		return frame, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return frame, fmt.Errorf("dogzilla camera frame returned %d", resp.StatusCode)
+	}
+	err = json.NewDecoder(resp.Body).Decode(&frame)
+	return frame, err
+}
+
 func (c *DogzillaClient) Stand() error {
 	return c.post("/motion/stand", map[string]any{})
 }

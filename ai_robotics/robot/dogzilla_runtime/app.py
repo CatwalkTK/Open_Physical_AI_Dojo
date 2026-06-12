@@ -1,11 +1,56 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import base64
 import json
+import struct
 import time
+import zlib
 from dataclasses import asdict, dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+
+CAMERA_WIDTH = 480
+CAMERA_HEIGHT = 320
+
+
+def render_camera_scene(width: int = CAMERA_WIDTH, height: int = CAMERA_HEIGHT) -> bytes:
+    """Render a synthetic robot camera view as PNG using only the stdlib.
+
+    The real runtime will replace this with actual camera frames, so the
+    mock intentionally avoids third-party imaging dependencies.
+    """
+    rows = []
+    for y in range(height):
+        row = bytearray([0])  # PNG filter type 0 (None) per scanline
+        floor_shade = 90 + int(50 * y / height)
+        for x in range(width):
+            r, g, b = floor_shade, floor_shade + 8, floor_shade + 14
+            if 200 <= x <= 320 and 150 <= y <= 250:
+                r, g, b = 205, 40, 40  # red block ahead
+            elif (x - 96) ** 2 + (y - 210) ** 2 <= 40 ** 2:
+                r, g, b = 30, 110, 190  # blue marker, front left
+            elif y >= 290:
+                r, g, b = 56, 52, 48  # floor edge
+            row += bytes((r, g, b))
+        rows.append(bytes(row))
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(
+            ">I", zlib.crc32(kind + data) & 0xFFFFFFFF
+        )
+
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    idat = zlib.compress(b"".join(rows), level=6)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", ihdr)
+        + chunk(b"IDAT", idat)
+        + chunk(b"IEND", b"")
+    )
+
+
+CAMERA_FRAME_BASE64 = base64.b64encode(render_camera_scene()).decode("ascii")
 
 
 @dataclass
@@ -36,8 +81,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == "/camera/frame":
             self.respond({
-                "format": "mock",
-                "message": "camera frame endpoint placeholder",
+                "format": "png",
+                "width": CAMERA_WIDTH,
+                "height": CAMERA_HEIGHT,
+                "image_base64": CAMERA_FRAME_BASE64,
                 "updated_at": utc_now(),
             })
             return

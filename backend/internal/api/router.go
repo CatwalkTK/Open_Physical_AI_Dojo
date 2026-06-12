@@ -12,6 +12,7 @@ import (
 func NewRouter(taskService *service.TaskService) *gin.Engine {
 	router := gin.Default()
 	router.Use(cors())
+	router.Use(maxBodySize(16 << 20)) // image uploads included
 
 	api := router.Group("/api")
 	{
@@ -19,6 +20,7 @@ func NewRouter(taskService *service.TaskService) *gin.Engine {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
 		api.POST("/tasks", createTask(taskService))
+		api.GET("/tasks", listTasks(taskService))
 		api.GET("/tasks/:id", getTask(taskService))
 		api.POST("/perception", runPerception(taskService))
 		api.GET("/perception/status", getPerceptionStatus(taskService))
@@ -104,6 +106,12 @@ func createTask(taskService *service.TaskService) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusCreated, task)
+	}
+}
+
+func listTasks(taskService *service.TaskService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusOK, taskService.ListTasks())
 	}
 }
 
@@ -207,6 +215,13 @@ func streamTask(taskService *service.TaskService) gin.HandlerFunc {
 				c.Writer.Flush()
 			}
 		}
+	}
+}
+
+func maxBodySize(limit int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
+		c.Next()
 	}
 }
 

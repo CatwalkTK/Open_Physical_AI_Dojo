@@ -195,6 +195,7 @@ h1 {
 }
 
 .simulator-panel {
+  grid-row: span 2;
   min-height: 360px;
 }
 
@@ -340,6 +341,7 @@ textarea {
 }
 
 .vision-panel {
+  grid-row: span 2;
   min-height: 420px;
 }
 
@@ -351,6 +353,76 @@ textarea {
   overflow: hidden;
   position: relative;
   width: 100%;
+}
+
+.vision-image-stage {
+  background: #11161a;
+}
+
+.sim3d-mount {
+  border: 1px solid #c7d2cf;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.sim3d-mount canvas {
+  display: block;
+  width: 100%;
+}
+
+.plan-stale-hint {
+  background: #fff4df;
+  border: 1px solid #e6b400;
+  border-radius: 8px;
+  color: #6b4f00;
+  font-size: 13px;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+}
+
+.plan-hint {
+  color: #6c7c78;
+  font-size: 13px;
+  margin: 10px 0 0;
+}
+
+.sim3d-hint {
+  color: #6c7c78;
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+.vision-image-stage img {
+  display: block;
+  height: 100%;
+  object-fit: fill;
+  width: 100%;
+}
+
+.vision-controls {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.upload-field {
+  background: #f3f6f5;
+  border: 1px dashed #aebcb8;
+  border-radius: 8px;
+  cursor: pointer;
+  flex: 1;
+  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-field input[type="file"] {
+  display: none;
 }
 
 .bench-surface {
@@ -802,7 +874,9 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .task-panel {
+  .task-panel,
+  .simulator-panel,
+  .vision-panel {
     grid-row: auto;
   }
 

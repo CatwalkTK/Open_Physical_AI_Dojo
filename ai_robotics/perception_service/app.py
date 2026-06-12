@@ -6,8 +6,11 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+import detector
 
-IMAGE_SIZE = {"width": 480, "height": 320}
+
+MODEL_NAME = "opencv-color-detector-v1"
+MAX_BODY_BYTES = 12 * 1024 * 1024
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -16,7 +19,7 @@ class Handler(BaseHTTPRequestHandler):
             self.respond({
                 "status": "ok",
                 "service": "perception",
-                "model": "mock-workbench-detector",
+                "model": MODEL_NAME,
                 "updated_at": utc_now(),
             })
             return
@@ -25,12 +28,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path == "/perception":
             payload = self.read_json()
+            if payload is None:
+                self.respond({"error": "request body too large"}, status=413)
+                return
             self.respond(run_perception(payload))
             return
         self.respond({"error": "not found"}, status=404)
 
-    def read_json(self) -> dict[str, Any]:
+    def read_json(self) -> dict[str, Any] | None:
         length = int(self.headers.get("Content-Length", "0"))
+        if length > MAX_BODY_BYTES:
+            return None
         if length == 0:
             return {}
         raw = self.rfile.read(length)
@@ -54,43 +62,30 @@ class Handler(BaseHTTPRequestHandler):
 
 def run_perception(payload: dict[str, Any]) -> dict[str, Any]:
     source = str(payload.get("source") or "sample_workbench")
-    instruction = str(payload.get("instruction") or "")
-    lower_instruction = instruction.lower()
+    image_base64 = payload.get("image_base64") or ""
 
-    objects = [
-        {
-            "label": "red_block",
-            "display_name": "赤いブロック",
-            "confidence": 0.94,
-            "bbox": [94, 78, 205, 172],
-            "position_hint": "front_left",
-        },
-        {
-            "label": "blue_marker",
-            "display_name": "青い目印",
-            "confidence": 0.88,
-            "bbox": [286, 112, 382, 202],
-            "position_hint": "front_right",
-        },
-        {
-            "label": "table_edge",
-            "display_name": "机の端",
-            "confidence": 0.81,
-            "bbox": [0, 256, 480, 294],
-            "position_hint": "near_front",
-        },
-    ]
+    image = None
+    if image_base64:
+        image = detector.decode_base64_image(str(image_base64))
+        if image is None:
+            return {
+                "source": source,
+                "image_size": {"width": 0, "height": 0},
+                "objects": [],
+                "summary": "image_base64 could not be decoded",
+            }
+    if image is None:
+        image = detector.generate_sample_scene()
+        source = source or "sample_workbench"
 
-    if "赤" in instruction or "red" in lower_instruction:
-        objects = [obj for obj in objects if obj["label"] == "red_block"]
-    elif "青" in instruction or "blue" in lower_instruction:
-        objects = [obj for obj in objects if obj["label"] == "blue_marker"]
-
+    height, width = image.shape[:2]
+    objects = detector.detect(image)
     return {
         "source": source,
-        "image_size": IMAGE_SIZE,
+        "image_size": {"width": int(width), "height": int(height)},
         "objects": objects,
-        "summary": "perception service mock completed; replace detector internals with YOLO/SAM/etc. later",
+        "image_base64": detector.encode_image_base64(image),
+        "summary": f"{MODEL_NAME} detected {len(objects)} objects",
     }
 
 
@@ -100,7 +95,7 @@ def utc_now() -> str:
 
 def main() -> None:
     server = ThreadingHTTPServer(("0.0.0.0", 8070), Handler)
-    print("Perception Service listening on :8070")
+    print(f"Perception Service ({MODEL_NAME}) listening on :8070")
     server.serve_forever()
 
 

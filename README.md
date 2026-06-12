@@ -9,7 +9,7 @@ The current implementation is Phase 7 initial:
 - Vision Viewer
 - Python Perception Service
 - Perception Service status API
-- Simulator Viewer with pose and path updates
+- Three.js 3D Simulator Viewer with continuous pose animation and orbit camera
 - Dogzilla Status Viewer
 - Dogzilla Runtime health/state/stop API
 - Benchmark Viewer
@@ -111,6 +111,8 @@ curl -s -X POST http://localhost:8080/api/robot/dogzilla/stop \
 curl -s -X POST http://localhost:8080/api/evaluations/run \
   -H 'Content-Type: application/json' \
   -d '{"suite":"simulator_basic"}'
+
+curl -s http://localhost:8080/api/tasks
 
 curl -s http://localhost:8080/api/episodes
 

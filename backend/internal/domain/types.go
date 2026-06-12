@@ -52,13 +52,23 @@ type PlanRequest struct {
 type PerceptionRequest struct {
 	Source      string `json:"source"`
 	Instruction string `json:"instruction,omitempty"`
+	ImageBase64 string `json:"image_base64,omitempty"`
 }
 
 type PerceptionResult struct {
-	Source    string           `json:"source"`
-	ImageSize ImageSize        `json:"image_size"`
-	Objects   []DetectedObject `json:"objects"`
-	Summary   string           `json:"summary"`
+	Source      string           `json:"source"`
+	ImageSize   ImageSize        `json:"image_size"`
+	Objects     []DetectedObject `json:"objects"`
+	ImageBase64 string           `json:"image_base64,omitempty"`
+	Summary     string           `json:"summary"`
+}
+
+type DogzillaCameraFrame struct {
+	Format      string `json:"format"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	ImageBase64 string `json:"image_base64"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 type PerceptionServiceStatus struct {

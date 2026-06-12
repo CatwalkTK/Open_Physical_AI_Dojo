@@ -35,10 +35,10 @@ import type {
   EvaluationResult,
   PerceptionResult,
   PerceptionServiceStatus,
-  SimulatorObject,
   SimulatorState,
   Task,
 } from "./lib/api/types";
+import { Simulator3D } from "./components/Simulator3D";
 import "./styles.css";
 
 function App() {
@@ -52,6 +52,7 @@ function App() {
   const [episodeHistory, setEpisodeHistory] = React.useState<Task[]>([]);
   const [evaluationHistory, setEvaluationHistory] = React.useState<EvaluationResult[]>([]);
   const [error, setError] = React.useState("");
+  const [uploadedImage, setUploadedImage] = React.useState<{ name: string; base64: string } | null>(null);
   const [isBusy, setIsBusy] = React.useState(false);
   const [isVisionBusy, setIsVisionBusy] = React.useState(false);
   const [isPerceptionStatusBusy, setIsPerceptionStatusBusy] = React.useState(false);
@@ -89,13 +90,44 @@ function App() {
     setError("");
     setIsVisionBusy(true);
     try {
-      const result = await runPerception({ source: "sample_workbench", instruction });
+      const result = await runPerception({
+        source: uploadedImage ? `upload:${uploadedImage.name}` : "sample_workbench",
+        instruction,
+        image_base64: uploadedImage?.base64,
+      });
       setPerception(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "画像認識に失敗しました");
     } finally {
       setIsVisionBusy(false);
     }
+  }
+
+  async function handleDogzillaCameraPerception() {
+    setError("");
+    setIsVisionBusy(true);
+    try {
+      const result = await runPerception({ source: "dogzilla_camera", instruction });
+      setPerception(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Dogzillaカメラ認識に失敗しました");
+    } finally {
+      setIsVisionBusy(false);
+    }
+  }
+
+  function handleImageSelected(file: File | null) {
+    if (!file) {
+      setUploadedImage(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result ?? "");
+      const base64 = dataUrl.includes(",") ? dataUrl.slice(dataUrl.indexOf(",") + 1) : dataUrl;
+      setUploadedImage({ name: file.name, base64 });
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handlePerceptionStatus() {
@@ -199,6 +231,11 @@ function App() {
     setEvaluationHistory(evaluations);
   }
 
+  const trimmedInstruction = instruction.trim();
+  const isPlanStale =
+    !task || task.instruction.trim() !== trimmedInstruction || task.environment !== environment;
+  const canRun = !!task && task.status !== "running" && !isPlanStale && !isBusy;
+
   return (
     <main className="shell">
       <section className="topbar">
@@ -264,7 +301,7 @@ function App() {
               <Waypoints size={18} />
               Plan
             </button>
-            <button onClick={handleExecute} disabled={isBusy || !task || task.status === "running"}>
+            <button onClick={handleExecute} disabled={!canRun}>
               <Play size={18} />
               Run
             </button>
@@ -274,7 +311,27 @@ function App() {
             </button>
           </div>
 
+          {!task && trimmedInstruction && (
+            <p className="plan-hint">Planを押すと、この指示から行動計画を作成します。</p>
+          )}
+          {isPlanStale && task && (
+            <p className="plan-stale-hint">
+              指示または実行環境が変わっています。Runの前に必ずPlanを押してください。
+            </p>
+          )}
+          {task && !isPlanStale && task.status === "succeeded" && (
+            <p className="plan-hint">計画は最新です。Runで原点から再実行できます。</p>
+          )}
+
           {error && <p className="error">{error}</p>}
+        </div>
+
+        <div className="panel simulator-panel">
+          <div className="panel-title">
+            <Map size={20} />
+            <h2>Simulator Viewer</h2>
+          </div>
+          <SimulatorViewer state={task?.simulator_state} environment={task?.environment ?? environment} />
         </div>
 
         <div className="panel vision-panel">
@@ -286,7 +343,11 @@ function App() {
             result={perception}
             status={perceptionStatus}
             isStatusBusy={isPerceptionStatusBusy}
+            isVisionBusy={isVisionBusy}
+            uploadedImageName={uploadedImage?.name ?? null}
             onRefreshStatus={handlePerceptionStatus}
+            onImageSelected={handleImageSelected}
+            onRunDogzillaCamera={handleDogzillaCameraPerception}
           />
         </div>
 
@@ -298,6 +359,10 @@ function App() {
           {task?.plan ? (
             <div className="plan">
               <div className="meta-grid">
+                <span>Instruction</span>
+                <strong>{task.instruction}</strong>
+                <span>Task</span>
+                <strong>{task.id}</strong>
                 <span>Goal</span>
                 <strong>{task.plan.goal}</strong>
                 <span>Risk</span>
@@ -317,14 +382,6 @@ function App() {
           ) : (
             <EmptyState text="計画はまだありません" />
           )}
-        </div>
-
-        <div className="panel simulator-panel">
-          <div className="panel-title">
-            <Map size={20} />
-            <h2>Simulator Viewer</h2>
-          </div>
-          <SimulatorViewer state={task?.simulator_state} environment={task?.environment ?? environment} />
         </div>
 
         <div className="panel dogzilla-panel">
@@ -545,31 +602,8 @@ function SimulatorViewer({ state, environment }: { state?: SimulatorState; envir
 
   return (
     <div>
-      <div className="sim-stage" aria-label="simulator workspace">
-        <div className="sim-grid" />
-        {(state?.targets ?? defaultSimulatorTargets()).map((target) => (
-          <SimulatorObjectMarker key={target.id} object={target} variant="target" />
-        ))}
-        {(state?.obstacles ?? defaultSimulatorObstacles()).map((obstacle) => (
-          <SimulatorObjectMarker key={obstacle.id} object={obstacle} variant="obstacle" />
-        ))}
-        {(state?.path ?? [{ x: 0, y: 0, yaw_deg: 0, time: "" }]).map((pose, index) => (
-          <div
-            key={`${pose.time}-${index}`}
-            className={index === 0 ? "sim-path-dot start" : "sim-path-dot"}
-            style={simPositionStyle(pose.x, pose.y)}
-          />
-        ))}
-        <div
-          className="sim-robot"
-          style={{
-            ...simPositionStyle(state?.x ?? 0, state?.y ?? 0),
-            transform: `translate(-50%, -50%) rotate(${state?.yaw_deg ?? 0}deg)`,
-          }}
-        >
-          <span />
-        </div>
-      </div>
+      <Simulator3D state={state} />
+      <p className="sim3d-hint">ドラッグで視点回転 / ホイールでズーム</p>
       <div className="meta-grid compact simulator-meta">
         <span>Mode</span>
         <strong>{state?.mode ?? "idle"}</strong>
@@ -582,44 +616,27 @@ function SimulatorViewer({ state, environment }: { state?: SimulatorState; envir
   );
 }
 
-function SimulatorObjectMarker({ object, variant }: { object: SimulatorObject; variant: "target" | "obstacle" }) {
-  return (
-    <div className={`sim-object sim-object-${variant}`} style={simPositionStyle(object.x, object.y)}>
-      <span>{object.label}</span>
-    </div>
-  );
-}
-
-function simPositionStyle(x: number, y: number) {
-  return {
-    left: `${50 + x * 70}%`,
-    top: `${50 - y * 70}%`,
-  };
-}
-
-function defaultSimulatorTargets(): SimulatorObject[] {
-  return [
-    { id: "red_block", label: "赤いブロック", x: 0.42, y: 0.12, radius: 0.08 },
-    { id: "blue_marker", label: "青い目印", x: 0.34, y: -0.24, radius: 0.07 },
-  ];
-}
-
-function defaultSimulatorObstacles(): SimulatorObject[] {
-  return [{ id: "table_edge", label: "机の端", x: 0.58, y: 0, radius: 0.06 }];
-}
-
 function VisionViewer({
   result,
   status,
   isStatusBusy,
+  isVisionBusy,
+  uploadedImageName,
   onRefreshStatus,
+  onImageSelected,
+  onRunDogzillaCamera,
 }: {
   result: PerceptionResult | null;
   status: PerceptionServiceStatus | null;
   isStatusBusy: boolean;
+  isVisionBusy: boolean;
+  uploadedImageName: string | null;
   onRefreshStatus: () => void;
+  onImageSelected: (file: File | null) => void;
+  onRunDogzillaCamera: () => void;
 }) {
   const objects = result?.objects ?? [];
+  const imageSize = result?.image_size ?? { width: 480, height: 320 };
   return (
     <div>
       <div className="service-status-row">
@@ -632,16 +649,43 @@ function VisionViewer({
         </button>
       </div>
       {status?.error && <p className="error">{status.error}</p>}
-      <div className="vision-stage" aria-label="sample workbench">
-        <div className="bench-surface">
-          <div className="sample-object red-block" />
-          <div className="sample-object blue-marker" />
-          <div className="table-edge" />
-        </div>
-        {objects.map((object) => (
-          <DetectionBox key={object.label} object={object} />
-        ))}
+      <div className="vision-controls">
+        <label className="upload-field">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => onImageSelected(event.target.files?.[0] ?? null)}
+          />
+          <span>{uploadedImageName ?? "画像を選択(未選択ならサンプル)"}</span>
+        </label>
+        <button onClick={onRunDogzillaCamera} disabled={isVisionBusy} title="Dogzillaのカメラフレームで認識">
+          <Bot size={16} />
+          Dogzillaカメラ
+        </button>
       </div>
+      {result?.image_base64 ? (
+        <div
+          className="vision-stage vision-image-stage"
+          aria-label="analyzed image"
+          style={{ aspectRatio: `${imageSize.width} / ${imageSize.height}` }}
+        >
+          <img src={`data:image/jpeg;base64,${result.image_base64}`} alt={result.source} />
+          {objects.map((object, index) => (
+            <DetectionBox key={`${object.label}-${index}`} object={object} imageSize={imageSize} />
+          ))}
+        </div>
+      ) : (
+        <div className="vision-stage" aria-label="sample workbench">
+          <div className="bench-surface">
+            <div className="sample-object red-block" />
+            <div className="sample-object blue-marker" />
+            <div className="table-edge" />
+          </div>
+          {objects.map((object, index) => (
+            <DetectionBox key={`${object.label}-${index}`} object={object} imageSize={imageSize} />
+          ))}
+        </div>
+      )}
       {result ? (
         <div className="detections">
           <div className="meta-grid compact">
@@ -651,8 +695,8 @@ function VisionViewer({
             <strong>{result.objects.length}</strong>
           </div>
           <ul>
-            {result.objects.map((object) => (
-              <li key={object.label}>
+            {result.objects.map((object, index) => (
+              <li key={`${object.label}-${index}`}>
                 <strong>{object.display_name}</strong>
                 <span>{Math.round(object.confidence * 100)}% / {object.position_hint}</span>
               </li>
@@ -666,16 +710,24 @@ function VisionViewer({
   );
 }
 
-function DetectionBox({ object }: { object: DetectedObject }) {
+function DetectionBox({
+  object,
+  imageSize,
+}: {
+  object: DetectedObject;
+  imageSize: { width: number; height: number };
+}) {
   const [x1, y1, x2, y2] = object.bbox;
+  const width = imageSize.width || 480;
+  const height = imageSize.height || 320;
   return (
     <div
       className="detection-box"
       style={{
-        left: `${(x1 / 480) * 100}%`,
-        top: `${(y1 / 320) * 100}%`,
-        width: `${((x2 - x1) / 480) * 100}%`,
-        height: `${((y2 - y1) / 320) * 100}%`,
+        left: `${(x1 / width) * 100}%`,
+        top: `${(y1 / height) * 100}%`,
+        width: `${((x2 - x1) / width) * 100}%`,
+        height: `${((y2 - y1) / height) * 100}%`,
       }}
     >
       <span>{object.display_name}</span>

@@ -68,6 +68,7 @@ export type PerceptionResult = {
     height: number;
   };
   objects: DetectedObject[];
+  image_base64?: string;
   summary: string;
 };
 

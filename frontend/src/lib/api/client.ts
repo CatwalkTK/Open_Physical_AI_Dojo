@@ -23,7 +23,11 @@ export async function stopTask(taskId: string): Promise<Task> {
   });
 }
 
-export async function runPerception(input: { source: string; instruction: string }): Promise<PerceptionResult> {
+export async function runPerception(input: {
+  source: string;
+  instruction: string;
+  image_base64?: string;
+}): Promise<PerceptionResult> {
   return request("/api/perception", {
     method: "POST",
     body: JSON.stringify(input),

@@ -11,11 +11,12 @@ services:
   perception-service:
     image: python:3.13-slim
     working_dir: /app
-    command: ["python", "app.py"]
+    command: ["sh", "-c", "pip install -q -r requirements.txt && python app.py"]
     ports:
       - "8070:8070"
     volumes:
       - ./ai_robotics/perception_service:/app
+      - perception-pip-cache:/root/.cache/pip
 
   backend:
     image: golang:1.25
@@ -53,3 +54,4 @@ services:
 volumes:
   go-cache:
   frontend-node-modules:
+  perception-pip-cache:
