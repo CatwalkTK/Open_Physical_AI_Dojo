@@ -752,10 +752,15 @@ func (s *TaskService) Stop(taskID string) (*domain.Task, error) {
 	if !ok {
 		return nil, errors.New("task not found")
 	}
+	wasRunning := task.Status == domain.TaskRunning
 	task.Status = domain.TaskStopped
 	task.UpdatedAt = time.Now().UTC()
 	s.addEventLocked(task, "stopped", "stop requested")
 	s.broker.Publish(taskID, cloneTask(task))
+	// An interrupted execution is still an episode; a queued task is not.
+	if wasRunning && s.store != nil {
+		_ = s.store.SaveEpisode(cloneTask(task))
+	}
 	return cloneTask(task), nil
 }
 

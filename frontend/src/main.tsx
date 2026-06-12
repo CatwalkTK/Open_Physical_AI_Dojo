@@ -8,6 +8,7 @@ import {
   Circle,
   Clock,
   Eye,
+  GraduationCap,
   Map,
   Play,
   RefreshCw,
@@ -23,6 +24,7 @@ import {
   getPerceptionStatus,
   listEpisodes,
   listEvaluations,
+  listLessons,
   runEvaluation,
   runPerception,
   stopTask,
@@ -33,12 +35,14 @@ import type {
   DogzillaRuntimeStatus,
   Environment,
   EvaluationResult,
+  LessonWithStatus,
   PerceptionResult,
   PerceptionServiceStatus,
   SimulatorState,
   Task,
 } from "./lib/api/types";
 import { Simulator3D } from "./components/Simulator3D";
+import { LessonsPanel } from "./features/lessons/LessonsPanel";
 import "./styles.css";
 
 function App() {
@@ -51,6 +55,8 @@ function App() {
   const [evaluation, setEvaluation] = React.useState<EvaluationResult | null>(null);
   const [episodeHistory, setEpisodeHistory] = React.useState<Task[]>([]);
   const [evaluationHistory, setEvaluationHistory] = React.useState<EvaluationResult[]>([]);
+  const [lessons, setLessons] = React.useState<LessonWithStatus[]>([]);
+  const [isLessonsBusy, setIsLessonsBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const [uploadedImage, setUploadedImage] = React.useState<{ name: string; base64: string } | null>(null);
   const [isBusy, setIsBusy] = React.useState(false);
@@ -71,7 +77,27 @@ function App() {
     void handleDogzillaStatus();
     void handlePerceptionStatus();
     void handleRefreshHistory();
+    void handleRefreshLessons();
   }, []);
+
+  // Lesson completion depends on finished episodes, so re-check when the
+  // running task settles.
+  React.useEffect(() => {
+    if (task?.status === "succeeded" || task?.status === "failed" || task?.status === "stopped") {
+      void handleRefreshLessons();
+    }
+  }, [task?.status]);
+
+  async function handleRefreshLessons() {
+    setIsLessonsBusy(true);
+    try {
+      setLessons(await listLessons());
+    } catch {
+      // Lessons stay as-is when the backend is unreachable.
+    } finally {
+      setIsLessonsBusy(false);
+    }
+  }
 
   async function handleCreate() {
     setError("");
@@ -79,6 +105,7 @@ function App() {
     try {
       const nextTask = await createTask({ instruction, environment });
       setTask(nextTask);
+      void handleRefreshLessons();
     } catch (err) {
       setError(err instanceof Error ? err.message : "タスク作成に失敗しました");
     } finally {
@@ -96,6 +123,7 @@ function App() {
         image_base64: uploadedImage?.base64,
       });
       setPerception(result);
+      void handleRefreshLessons();
     } catch (err) {
       setError(err instanceof Error ? err.message : "画像認識に失敗しました");
     } finally {
@@ -109,6 +137,7 @@ function App() {
     try {
       const result = await runPerception({ source: "dogzilla_camera", instruction });
       setPerception(result);
+      void handleRefreshLessons();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Dogzillaカメラ認識に失敗しました");
     } finally {
@@ -249,8 +278,8 @@ function App() {
       <section className="phase-panel" aria-label="development phase">
         <div className="phase-summary">
           <span className="phase-kicker">Current Development Stage</span>
-          <h2>Phase 7: Perception Service Integration</h2>
-          <p>画像認識をGin内のmockからPython Perception Serviceへ分離し、モデル差し替えの境界を作る段階です。</p>
+          <h2>Phase 8: Learning Mode (Lessons)</h2>
+          <p>Lesson 1〜6の演習教材で「見る・理解する・判断する・動かす」を順番に学べる学習モードの段階です。</p>
         </div>
         <div className="phase-steps">
           <PhaseStep status="done" label="Phase 0" description="Gin / React / Dogzilla mock基盤" />
@@ -260,11 +289,12 @@ function App() {
           <PhaseStep status="done" label="Phase 4" description="Dogzilla状態確認と停止系統" />
           <PhaseStep status="done" label="Phase 5" description="評価ベンチマーク" />
           <PhaseStep status="done" label="Phase 6" description="履歴保存と再表示" />
-          <PhaseStep status="active" label="Phase 7" description="Perception Service連携" />
+          <PhaseStep status="done" label="Phase 7" description="Perception Service連携" />
+          <PhaseStep status="active" label="Phase 8" description="学習モード (Lessons)" />
         </div>
         <div className="capability-grid">
-          <Capability title="今できること" items={["Perception Service接続確認", "外部サービス経由でVision実行", "モデル差し替え境界を維持"]} />
-          <Capability title="まだ未実装" items={["本物のYOLO/SAM接続", "実機ROS2ノード接続", "SQLite/Postgres移行"]} />
+          <Capability title="今できること" items={["Lesson 1〜6の演習と達成判定", "学習進捗の保存と復元", "OpenCVベースのVision実行"]} />
+          <Capability title="まだ未実装" items={["本物のYOLO/SAM接続", "実機ROS2ノード接続", "SQLite + Qdrant移行"]} />
         </div>
       </section>
 
@@ -382,6 +412,19 @@ function App() {
           ) : (
             <EmptyState text="計画はまだありません" />
           )}
+        </div>
+
+        <div className="panel lessons-panel">
+          <div className="panel-title split-title">
+            <div>
+              <GraduationCap size={20} />
+              <h2>Lessons</h2>
+            </div>
+            <button className="icon-button" onClick={handleRefreshLessons} disabled={isLessonsBusy} title="Refresh lessons">
+              <RefreshCw size={18} />
+            </button>
+          </div>
+          <LessonsPanel lessons={lessons} isBusy={isLessonsBusy} />
         </div>
 
         <div className="panel dogzilla-panel">

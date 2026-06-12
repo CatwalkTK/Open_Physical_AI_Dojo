@@ -189,6 +189,26 @@ type DogzillaRuntimeStatus struct {
 	LastChecked time.Time      `json:"last_checked"`
 }
 
+type Lesson struct {
+	ID          string   `json:"id"`
+	Order       int      `json:"order"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Goal        string   `json:"goal"`
+	Steps       []string `json:"steps"`
+}
+
+type LessonProgress struct {
+	LessonID    string    `json:"lesson_id"`
+	CompletedAt time.Time `json:"completed_at"`
+}
+
+type LessonWithStatus struct {
+	Lesson
+	Completed   bool       `json:"completed"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+}
+
 type DogzillaSafety struct {
 	EmergencyStopAvailable bool    `json:"emergency_stop_available"`
 	MaxLinearX             float64 `json:"max_linear_x"`

@@ -26,7 +26,8 @@ func main() {
 		perception.NewClient(perceptionURL),
 		store,
 	)
-	router := api.NewRouter(taskService)
+	lessonService := service.NewLessonService(store)
+	router := api.NewRouter(taskService, lessonService)
 
 	log.Printf(
 		"backend listening on :%s, dogzilla runtime: %s, perception service: %s, data dir: %s",

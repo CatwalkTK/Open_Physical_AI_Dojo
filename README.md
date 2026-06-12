@@ -19,6 +19,7 @@ The current implementation is Phase 7 initial:
 - Dogzilla Runtime mock
 - Safety Guard for real-robot commands
 - SSE execution monitor
+- Lessons learning mode (Lesson 1-6) with automatic completion detection and persisted progress
 
 ## Architecture
 
@@ -117,6 +118,8 @@ curl -s http://localhost:8080/api/tasks
 curl -s http://localhost:8080/api/episodes
 
 curl -s http://localhost:8080/api/evaluations
+
+curl -s http://localhost:8080/api/lessons
 ```
 
 ## Current Dogzilla Contract
@@ -131,8 +134,8 @@ curl -s http://localhost:8080/api/evaluations
 
 ## Next Implementation Targets
 
-1. Replace Perception Service mock internals with a model-backed detector.
-2. Replace rule-based planning with a Python language/planner service.
-3. Replace JSONL persistence with SQLite or Postgres.
-4. Replace Dogzilla mock internals with ROS2 Humble nodes on Raspberry Pi 5.
-5. Add benchmark history charts.
+1. Replace rule-based planning with a Python language/planner service.
+2. Replace JSONL persistence with SQLite, plus Qdrant for episode semantic search.
+3. Add benchmark history charts.
+4. Replace the OpenCV HSV detector with a model-backed detector (YOLO/SAM).
+5. Replace Dogzilla mock internals with ROS2 Humble nodes on Raspberry Pi 5.

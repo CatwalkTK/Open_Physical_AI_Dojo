@@ -13,10 +13,11 @@ import (
 )
 
 type JSONLStore struct {
-	mu              sync.Mutex
-	dataDir         string
-	episodesFile    string
-	evaluationsFile string
+	mu                 sync.Mutex
+	dataDir            string
+	episodesFile       string
+	evaluationsFile    string
+	lessonProgressFile string
 }
 
 func NewJSONLStore(dataDir string) (*JSONLStore, error) {
@@ -27,9 +28,10 @@ func NewJSONLStore(dataDir string) (*JSONLStore, error) {
 		return nil, err
 	}
 	return &JSONLStore{
-		dataDir:         dataDir,
-		episodesFile:    filepath.Join(dataDir, "episodes.jsonl"),
-		evaluationsFile: filepath.Join(dataDir, "evaluations.jsonl"),
+		dataDir:            dataDir,
+		episodesFile:       filepath.Join(dataDir, "episodes.jsonl"),
+		evaluationsFile:    filepath.Join(dataDir, "evaluations.jsonl"),
+		lessonProgressFile: filepath.Join(dataDir, "lesson_progress.jsonl"),
 	}, nil
 }
 
@@ -41,7 +43,7 @@ func (s *JSONLStore) SaveEpisode(task *domain.Task) error {
 }
 
 func (s *JSONLStore) ListEpisodes(limit int) ([]domain.Task, error) {
-	var episodes []domain.Task
+	episodes := []domain.Task{}
 	if err := s.readJSONL(s.episodesFile, func(line []byte) error {
 		var task domain.Task
 		if err := json.Unmarshal(line, &task); err != nil {
@@ -61,7 +63,7 @@ func (s *JSONLStore) SaveEvaluation(result domain.EvaluationResult) error {
 }
 
 func (s *JSONLStore) ListEvaluations(limit int) ([]domain.EvaluationResult, error) {
-	var evaluations []domain.EvaluationResult
+	evaluations := []domain.EvaluationResult{}
 	if err := s.readJSONL(s.evaluationsFile, func(line []byte) error {
 		var result domain.EvaluationResult
 		if err := json.Unmarshal(line, &result); err != nil {
@@ -74,6 +76,25 @@ func (s *JSONLStore) ListEvaluations(limit int) ([]domain.EvaluationResult, erro
 	}
 	slices.Reverse(evaluations)
 	return limitSlice(evaluations, limit), nil
+}
+
+func (s *JSONLStore) SaveLessonProgress(progress domain.LessonProgress) error {
+	return s.appendJSON(s.lessonProgressFile, progress)
+}
+
+func (s *JSONLStore) ListLessonProgress() ([]domain.LessonProgress, error) {
+	entries := []domain.LessonProgress{}
+	if err := s.readJSONL(s.lessonProgressFile, func(line []byte) error {
+		var progress domain.LessonProgress
+		if err := json.Unmarshal(line, &progress); err != nil {
+			return err
+		}
+		entries = append(entries, progress)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 func (s *JSONLStore) appendJSON(path string, value any) error {

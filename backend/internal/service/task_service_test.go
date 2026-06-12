@@ -8,6 +8,7 @@ import (
 
 	"open-physical-ai-dojo/backend/internal/domain"
 	"open-physical-ai-dojo/backend/internal/integration/robot"
+	"open-physical-ai-dojo/backend/internal/repository"
 )
 
 func newTestService(t *testing.T, dogzilla *robot.DogzillaClient) *TaskService {
@@ -275,6 +276,62 @@ func TestStopOnlyCallsDogzillaForRealRobotTasks(t *testing.T) {
 	}
 	if got := stopCalls.Load(); got != 1 {
 		t.Fatalf("dogzilla stop must call runtime exactly once, got %d calls", got)
+	}
+}
+
+func TestStopWhileRunningPersistsStoppedEpisode(t *testing.T) {
+	store, err := repository.NewJSONLStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+	s := NewTaskService(nil, nil, store)
+
+	task, err := s.CreateTask(domain.CreateTaskRequest{
+		Instruction: "赤いブロックの近くまで移動して止まって",
+		Environment: domain.EnvironmentSimulator,
+	})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	if _, err := s.Execute(task.ID); err != nil {
+		t.Fatalf("execute task: %v", err)
+	}
+	stopped, err := s.Stop(task.ID)
+	if err != nil {
+		t.Fatalf("stop task: %v", err)
+	}
+	if stopped.Status != domain.TaskStopped {
+		t.Fatalf("expected stopped status, got %q", stopped.Status)
+	}
+
+	episodes, err := store.ListEpisodes(0)
+	if err != nil {
+		t.Fatalf("list episodes: %v", err)
+	}
+	if len(episodes) != 1 {
+		t.Fatalf("expected 1 persisted episode, got %d", len(episodes))
+	}
+	if episodes[0].ID != task.ID || episodes[0].Status != domain.TaskStopped {
+		t.Fatalf("expected stopped episode for %s, got %s/%s", task.ID, episodes[0].ID, episodes[0].Status)
+	}
+
+	// Stopping a queued task is not an execution, so no episode is written.
+	queued, err := s.CreateTask(domain.CreateTaskRequest{
+		Instruction: "前に進んで",
+		Environment: domain.EnvironmentSimulator,
+	})
+	if err != nil {
+		t.Fatalf("create queued task: %v", err)
+	}
+	if _, err := s.Stop(queued.ID); err != nil {
+		t.Fatalf("stop queued task: %v", err)
+	}
+	episodes, err = store.ListEpisodes(0)
+	if err != nil {
+		t.Fatalf("list episodes: %v", err)
+	}
+	if len(episodes) != 1 {
+		t.Fatalf("stopping a queued task must not persist an episode, got %d episodes", len(episodes))
 	}
 }
 

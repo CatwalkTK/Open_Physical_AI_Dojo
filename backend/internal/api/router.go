@@ -9,7 +9,7 @@ import (
 	"open-physical-ai-dojo/backend/internal/service"
 )
 
-func NewRouter(taskService *service.TaskService) *gin.Engine {
+func NewRouter(taskService *service.TaskService, lessonService *service.LessonService) *gin.Engine {
 	router := gin.Default()
 	router.Use(cors())
 	router.Use(maxBodySize(16 << 20)) // image uploads included
@@ -19,10 +19,11 @@ func NewRouter(taskService *service.TaskService) *gin.Engine {
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
-		api.POST("/tasks", createTask(taskService))
+		api.POST("/tasks", createTask(taskService, lessonService))
 		api.GET("/tasks", listTasks(taskService))
 		api.GET("/tasks/:id", getTask(taskService))
-		api.POST("/perception", runPerception(taskService))
+		api.POST("/perception", runPerception(taskService, lessonService))
+		api.GET("/lessons", listLessons(lessonService))
 		api.GET("/perception/status", getPerceptionStatus(taskService))
 		api.GET("/robot/dogzilla", getDogzillaStatus(taskService))
 		api.POST("/robot/dogzilla/stop", emergencyStopDogzilla(taskService))
@@ -82,18 +83,31 @@ func emergencyStopDogzilla(taskService *service.TaskService) gin.HandlerFunc {
 	}
 }
 
-func runPerception(taskService *service.TaskService) gin.HandlerFunc {
+func runPerception(taskService *service.TaskService, lessonService *service.LessonService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req domain.PerceptionRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, taskService.RunPerception(req))
+		result := taskService.RunPerception(req)
+		lessonService.RecordPerception(result)
+		c.JSON(http.StatusOK, result)
 	}
 }
 
-func createTask(taskService *service.TaskService) gin.HandlerFunc {
+func listLessons(lessonService *service.LessonService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		lessons, err := lessonService.Lessons()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, lessons)
+	}
+}
+
+func createTask(taskService *service.TaskService, lessonService *service.LessonService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req domain.CreateTaskRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -105,6 +119,7 @@ func createTask(taskService *service.TaskService) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		lessonService.RecordTaskCreated(task)
 		c.JSON(http.StatusCreated, task)
 	}
 }

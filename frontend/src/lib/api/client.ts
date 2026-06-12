@@ -1,4 +1,4 @@
-import type { DogzillaRuntimeStatus, Environment, EvaluationResult, PerceptionResult, PerceptionServiceStatus, Task } from "./types";
+import type { DogzillaRuntimeStatus, Environment, EvaluationResult, LessonWithStatus, PerceptionResult, PerceptionServiceStatus, Task } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
@@ -62,6 +62,10 @@ export async function listEpisodes(): Promise<Task[]> {
 
 export async function listEvaluations(): Promise<EvaluationResult[]> {
   return request("/api/evaluations");
+}
+
+export async function listLessons(): Promise<LessonWithStatus[]> {
+  return request("/api/lessons");
 }
 
 export function subscribeTask(taskId: string, onTask: (task: Task) => void) {

@@ -114,6 +114,17 @@ export type DogzillaSafety = {
   max_duration_ms: number;
 };
 
+export type LessonWithStatus = {
+  id: string;
+  order: number;
+  title: string;
+  description: string;
+  goal: string;
+  steps: string[];
+  completed: boolean;
+  completed_at?: string;
+};
+
 export type EvaluationResult = {
   id: string;
   suite: string;
